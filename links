@@ -1,0 +1,52 @@
+import scrapy
+import pandas as pd
+
+class AttackSpider(scrapy.Spider):
+    name = 'attack_table'
+    
+    start_urls = ['https://attack.mitre.org/']
+    
+    maxdepth = 2;
+    
+    def parse(self, response):
+        
+        LINKS = []
+        TEXTS = []
+        
+        from_url = ''
+        from_text = ''
+        depth = 0;
+    
+        if 'from' in response.meta:
+            from_url = response.meta['from']
+        if 'text' in response.meta:
+            from_text = response.meta['text']
+        if 'depth' in response.meta:
+            depth = response.meta['depth']
+        
+        
+        print(response.url, sep=' ')
+
+        if depth < self.maxdepth:
+            
+            a_links = response.xpath("//a")
+            for links in a_links:
+                
+                text = links.xpath("text()").extract_first()
+                link = links.xpath("@href").extract_first()
+                
+                LINKS.append(link)
+                TEXTS.append(text)
+                
+                request = response.follow(link, callback=self.parse)
+                
+                                
+                request.meta['from'] = response.url
+                request.meta['text'] = text
+                request.meta['depth'] = depth + 1
+            
+                yield request
+            
+            df = pd.DataFrame({'link name':LINKS, 'link text':TEXTS}) 
+            df.to_csv('websites.csv', index=False, encoding='utf-8')                             
+        
